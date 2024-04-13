@@ -4,7 +4,7 @@ import java.util.Date
 
 class Reserva(
     val espacios : List<Espacio>, val tipoDeUso : TipoDeUsoReserva, val numMaxOcupantes : Int,
-    val horaInicio : Date, val horaFinal : Date, val descripcion : String
+    val fechaInicio : Date, val fechaFinal : Date, val descripcion : String
 ) {
 
 }

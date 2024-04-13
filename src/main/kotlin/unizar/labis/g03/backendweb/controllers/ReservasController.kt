@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -19,19 +20,6 @@ import java.time.LocalDate
 @Tag(name = "Reservas AdaByron", description = "API para la reserva de espacios en el edificio Ada Byron")
 @RestController
 class ReservasController {
-
-    // El mapa interactivo de los espacios del Ada Byron permitirá mostrar sus distintas plantas
-    @Operation(
-        summary = "Obtiene todos los espacios existentes de una planta",
-        description = "Obtiene una lista con todos los espacios que existen en la planta pasada como parámetro.")
-    @GetMapping("/espacios/planta")
-    fun getEspaciosPlanta(@RequestBody @Parameter(name = "idPlanta", description = "Identificador de la planta de la que desea obtener los espacios", example = "2") idPlanta : Int): List<Espacio> {
-        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
-        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
-        conjuntoEspacios.add(espacio);
-
-        return conjuntoEspacios;
-    }
 
     // ----------------- PERSONA ---------------------
     @Operation(
@@ -96,10 +84,14 @@ class ReservasController {
 
     // ---------------- ESPACIO ---------------------
     @Operation(
-        summary = "Obtiene todos los espacios del sistema",
-        description = "Obtiene una lista con todos los espacios del sistema.")
+        summary = "Obtiene todos los espacios del sistema con posibilidad de añadir filtros por identificador, planta, máximo de ocupantes y categoría",
+        description = "Obtiene una lista con todos los espacios del sistema con la posibilidad de añadir distintos filtros.")
     @GetMapping("/espacios")
-    fun getEspacios(): List<Espacio> {
+    fun getEspacios(
+        @Parameter(name = "id", description = "Identificador del espacio que se desea añadir al sistema", example = "72") @RequestParam(required = false) id : Int,
+        @Parameter(name = "planta", description = "Planta en la que se encuentra el espacio que se desea añadir al sistema", example = "2") @RequestParam(required = false) planta: Int,
+        @Parameter(name = "número máximo de ocupantes", description = "Número de ocupantes máximos que tiene el espacio que se desea añadir al sistema", example = "150") @RequestParam(required = false) numMaxOcupantes : Int,
+        @Parameter(name = "categoria de reserva de espacio", description = "Indica la categoría de reserva del espacio que se desea añadir al sistema en caso de que sea reservable", example = "Aula") @RequestParam(required = false) categoriaReserva: TipoEspacio): List<Espacio> {
         val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
         val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
         conjuntoEspacios.add(espacio);
@@ -128,7 +120,7 @@ class ReservasController {
     @Operation(
         summary = "Permite a un usuario con rol de gerente modificar los siguientes atributos de un espacio: reservable, categoría de reserva de espacio" +
                 "horario de reserva disponible, porcentaje de uso máximo permitido.",
-        description = "Permite modificar los atributos de un espacio si el usuario con identificador {idUsuario} tiene rol de gerente")
+        description = "Permite modificar los atributos de un espacio si el usuario con identificador 'idUsuario' tiene rol de gerente")
     @PutMapping("/espacios/{id}")
     fun updateEspacio(@PathVariable id : Int,
                    @Parameter(name = "idUsuario", description = "Identificador del usuario que desea modificar los datos del espacio", example = "795593") @RequestParam(required = true) idUsuario : Int,
@@ -141,64 +133,16 @@ class ReservasController {
         return espacio;
     }
 
-    @Operation(
-        summary = "Obtiene todos los espacios del sistema que coinciden con el identificador pasado como parámetro",
-        description = "Obtiene una lista con todos los espacios del sistema que coinciden con el identificador {id}.")
-    @GetMapping("/espacios/{id}")
-    fun getEspaciosPorId(@PathVariable id : Int): List<Espacio> {
-        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
-        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
-        conjuntoEspacios.add(espacio);
-
-        return conjuntoEspacios;
-    }
-
-    @Operation(
-        summary = "Obtiene todos los espacios del sistema que coinciden con la categoría pasada como parámetro",
-        description = "Obtiene una lista con todos los espacios del sistema que coinciden con la categoria {categoria}.")
-    @GetMapping("/espacios/{categoria}")
-    fun getEspaciosPorCategoria(@PathVariable categoria : TipoEspacio): List<Espacio> {
-        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
-        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
-        conjuntoEspacios.add(espacio);
-
-        return conjuntoEspacios;
-    }
-
-    @Operation(
-        summary = "Obtiene todos los espacios del sistema que coinciden con el número máximo de ocupantes pasado como parámetro",
-        description = "Obtiene una lista con todos los espacios del sistema que coinciden con el número máximo de ocupantes {numMaxOcupantes}.")
-    @GetMapping("/espacios/{numMaxOcupantes}")
-    fun getEspaciosPorNumMaxOcupantes(@PathVariable numMaxOcupantes: Int): List<Espacio> {
-        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
-        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
-        conjuntoEspacios.add(espacio);
-
-        return conjuntoEspacios;
-    }
-
-    @Operation(
-        summary = "Obtiene todos los espacios del sistema que se encuentran en la planta como parámetro",
-        description = "Obtiene una lista con todos los espacios del sistema que coinciden que se encuentran en la planta {planta}.")
-    @GetMapping("/espacios/{planta}")
-    fun getEspaciosPorPlanta(@PathVariable planta : Int): List<Espacio> {
-        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
-        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
-        conjuntoEspacios.add(espacio);
-
-        return conjuntoEspacios;
-    }
-
     // ----------------- RESERVA --------------------
     @Operation(
         summary = "Permite a un usuario con rol de gerente obtener todas las reservas vivas del sistema",
-        description = "Obtiene una lista con todas las Reservas vivas del sistema asociadas si el usuario con id {idUsuario} .")
+        description = "Obtiene una lista con todas las Reservas vivas del sistema asociadas si el usuario con id 'idUsuario' tiene rol de gerente .")
     @GetMapping("/reservas")
     fun getReservasVivas(@PathVariable  idUsuario: Int): List<Reserva> {
             val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
             val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
             conjuntoEspacios.add(espacio);
-            val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
+            val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
             val conjuntoReservas : MutableList<Reserva> = ArrayList<Reserva>();
             conjuntoReservas.add(reserva);
 
@@ -209,19 +153,17 @@ class ReservasController {
         summary = "Permite que un usuario realice una reserva",
         description = "Permite que el usuario con identificador 'idUsuario' realice una reserva.")
     @PostMapping("/reservas")
-    fun addReserva(@Parameter(name = "espacio", description = "Espacio o espacios que el usuario desea reservar", example = "espacio1, espacio2, yokse") @RequestParam(required = true) tamano : Double,
-                   @Parameter(name = "id", description = "Identificador del espacio que se desea añadir al sistema", example = "72") @RequestParam(required = true) id : Int,
-                   @Parameter(name = "tipo de espacio", description = "El tipo de espacio que es el espacio que se desea añadir al sistema", example = "Aula") @RequestParam(required = true) tipoEspacio : TipoEspacio,
-                   @Parameter(name = "número máximo de ocupantes", description = "Número de ocupantes máximos que tiene el espacio que se desea añadir al sistema", example = "150") @RequestParam(required = true) numMaxOcupantes : Int,
-                   @Parameter(name = "planta", description = "Planta en la que se encuentra el espacio que se desea añadir al sistema", example = "2") @RequestParam(required = true) planta: Int,
-                   @Parameter(name = "reservable", description = "Indica si el espacio que se desea añadir al sistema se puede reservar o no", example = "True") @RequestParam(required = true) reservable: Boolean,
-                   @Parameter(name = "categoria de reserva de espacio", description = "Indica la categoría de reserva del espacio que se desea añadir al sistema en caso de que sea reservable", example = "Aula") @RequestParam(required = false) categoriaReserva: TipoEspacio,
-                   @Parameter(name = "horario de reserva disponible", description = "Indica el horario disponible de reserva que tiene el espacio que se desea añadir al sistema en caso de que sea reservable", example = "09:00-14:00") @RequestParam(required = false) horarioReservaDisponible: String,
-                   @Parameter(name = "porcentaje de uso maximo", description = "Indica el porcentaje máximo permitido del espacio que se desea añadir al sistema", example = "50.0") @RequestParam(required = false) porcentajeUsoMaximo: Double): Reserva {
+    fun addReserva(@Parameter(name = "idUsuario", description = "Identificador del usuario que se desea realizar la reserva", example = "795593") @RequestParam(required = true) idUsuario : Int,
+                   @Parameter(name = "espacio", description = "Espacio o espacios que el usuario desea reservar", example = "espacio1, espacio2, yokse") @RequestParam(required = true) espacio : List<Espacio>,
+                   @Parameter(name = "tipo de uso reserva", description = "El tipo de uso de reserva que va a tener la reserva que se va a añadir al sistema", example = "Docencia") @RequestParam(required = true) tipoUsoReserva : TipoDeUsoReserva,
+                   @Parameter(name = "número máximo de ocupantes", description = "Número de ocupantes máximos que va a tener la reserva que se va a añadir al sistema", example = "8") @RequestParam(required = true) numMaxOcupantes : Int,
+                   @Parameter(name = "fecha de inicio", description = "Fecha y hora de inicio a la que dará comienzo la reserva que se va a añadir al sistema", example = "13/04/2024 09:00") @RequestParam(required = true) fechaInicio: Date,
+                   @Parameter(name = "fecha final", description = "Fecha y hora de inicio a la que dará comienzo la reserva que se va a añadir al sistema", example = "13/04/2024 18:00") @RequestParam(required = true) fechaFinal: Date,
+                   @Parameter(name = "descripción", description = "Descripción de la reserva que se va a añadir al sistema", example = "Reserva hecha por el grupo 03") @RequestParam(required = false) descripcion: String) : Reserva {
         val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
         val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
         conjuntoEspacios.add(espacio);
-        val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
+        val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
         return reserva;
     }
 
@@ -233,13 +175,29 @@ class ReservasController {
         val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
         val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
         conjuntoEspacios.add(espacio);
-        val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
+        val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
         val conjuntoReservas : MutableList<Reserva> = ArrayList<Reserva>();
         conjuntoReservas.add(reserva);
 
         return conjuntoReservas;
     }
 
+    @Operation(
+        summary = "Permite a un usuario con rol de gerente eliminar una reserva del sistema",
+        description = "Permite eliminar del sistema la reserva con identificador 'id' si el usuario con identificador 'idUsuario' tiene el rol de gerente.")
+    @DeleteMapping("/reservas/{id}")
+    fun eliminarReserva(@PathVariable id: Int): List<Reserva> {
+        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
+        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
+        conjuntoEspacios.add(espacio);
+        val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, Date.valueOf("12/04/2024 18:00"), Date.valueOf("12/04/2024 20:00"), "la mejor");
+        val conjuntoReservas : MutableList<Reserva> = ArrayList<Reserva>();
+        conjuntoReservas.add(reserva);
+
+        return conjuntoReservas;
+    }
+
+    /*
     @Operation(
         summary = "Obtiene todos los espacios del sistema que están disponibles para reservar",
         description = "Obtiene una lista con todos los espacios del sistema disponibles paara reservar.")
@@ -251,15 +209,6 @@ class ReservasController {
 
         return conjuntoEspacios;
     }
-
-    // ---------- DUDAS -----------
-    // HorarioDisponibleReserva -> HorarioDisponibleReservaInicio y HorarioDisponibleReservaFinal ?
-    // IDs -> int ? UUID ? String ?
-    // Si al buscar numMaxOcupantes y planta coincide???
-    // Strings deben ser required siempre?
-    // Atributos dependientes de si el espacio es reservable o no?
-
-
 
     @Operation(
         summary = "Informa si un espacio está disponible para reservar o no",
@@ -274,4 +223,27 @@ class ReservasController {
             return false;
         }
     }
+
+    // El mapa interactivo de los espacios del Ada Byron permitirá mostrar sus distintas plantas
+    @Operation(
+        summary = "Obtiene todos los espacios existentes de una planta",
+        description = "Obtiene una lista con todos los espacios que existen en la planta pasada como parámetro.")
+    @GetMapping("/espacios/planta")
+    fun getEspaciosPlanta(@RequestBody @Parameter(name = "idPlanta", description = "Identificador de la planta de la que desea obtener los espacios", example = "2") idPlanta : Int): List<Espacio> {
+        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
+        val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
+        conjuntoEspacios.add(espacio);
+
+        return conjuntoEspacios;
+    }
+
+     */
+
+    // ---------- DUDAS -----------
+    // HorarioDisponibleReserva -> HorarioDisponibleReservaInicio y HorarioDisponibleReservaFinal ?
+    // IDs -> int ? UUID ? String ?
+    // Si al buscar numMaxOcupantes y planta coincide???
+    // Strings deben ser required siempre?
+    // Atributos dependientes de si el espacio es reservable o no?
+
 }
