@@ -2,23 +2,20 @@ package unizar.labis.g03.backendweb.controllers
 
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.amqp.rabbit.core.RabbitTemplate
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.format.annotation.DateTimeFormat
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.http.codec.json.Jackson2JsonDecoder
+import org.springframework.web.bind.annotation.*
+import unizar.labis.g03.backendweb.jsonConverter
+import unizar.labis.g03.backendweb.messaging.models.PersonaOut
 import unizar.labis.g03.backendweb.models.*
-import java.util.Date
-import java.time.LocalDate
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.HashMap
 
 @Tag(name = "Reservas AdaByron", description = "API para la reserva de espacios en el edificio Ada Byron")
 @RestController
@@ -83,6 +80,8 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
         conjuntoRoles.add(rol);
         val persona = Persona("Adrian", "Arribas", "795593@gmail.com", conjuntoRoles, Departamento.InformaticaIngenieriaSistemas);
 
+        val response = rabbitTemplate.convertSendAndReceive("cambiarCaracteristicasPersonal", "{}")
+
         return persona;
     }
 
@@ -90,15 +89,23 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
     @Operation(
         summary = "Obtiene todos los espacios del sistema con posibilidad de añadir filtros por identificador, planta, máximo de ocupantes y categoría",
         description = "Obtiene una lista con todos los espacios del sistema con la posibilidad de añadir distintos filtros.")
-    @GetMapping("/espacios")
+    @GetMapping(value = ["/espacios"], produces = ["application/json"])
     fun getEspacios(
         @Parameter(name = "id", description = "Identificador del espacio que se desea añadir al sistema", example = "72") @RequestParam(required = false) id : Int,
         @Parameter(name = "planta", description = "Planta en la que se encuentra el espacio que se desea añadir al sistema", example = "2") @RequestParam(required = false) planta: Int,
         @Parameter(name = "numMaxOcupantes", description = "Número de ocupantes máximos que tiene el espacio que se desea añadir al sistema", example = "150") @RequestParam(required = false) numMaxOcupantes : Int,
-        @Parameter(name = "categoriaReserva", description = "Indica la categoría de reserva del espacio que se desea añadir al sistema en caso de que sea reservable", example = "Aula") @RequestParam(required = false) categoriaReserva: TipoEspacio): List<Espacio> {
+        @Parameter(name = "categoriaReserva", description = "Indica la categoría de reserva del espacio que se desea añadir al sistema en caso de que sea reservable", example = "Aula") @RequestParam(required = false) categoriaReserva: TipoEspacio): Any? {
         val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
         val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
         conjuntoEspacios.add(espacio);
+
+
+        val response = rabbitTemplate.convertSendAndReceive("buscarEspacios",
+            "{\"id\": \"$id\"," +
+                    "\"categoria\": \"$categoriaReserva\"," +
+                    "\"maxOcupantes\": \"$numMaxOcupantes\"," +
+                    "\"planta\": \"$planta\"" +
+                    "}")
 
         return conjuntoEspacios;
     }
@@ -134,6 +141,8 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
                    @Parameter(name = "porcentajeUsoMaximo", description = "Indica el porcentaje máximo permitido del espacio que se desea añadir al sistema", example = "50.0") @RequestParam(required = false) porcentajeUsoMaximo: Double): Espacio {
         val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
 
+        val response = rabbitTemplate.convertSendAndReceive("cambiarCaracteristicasEspacio", "{}")
+
         return espacio;
     }
 
@@ -150,6 +159,8 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
             val conjuntoReservas : MutableList<Reserva> = ArrayList<Reserva>();
             conjuntoReservas.add(reserva);
 
+            val response = rabbitTemplate.convertSendAndReceive("consultarReservas", idUsuario.toString())
+
             return conjuntoReservas;
     }
 
@@ -164,10 +175,38 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
                    @Parameter(name = "fechaInicio", description = "Fecha y hora de inicio a la que dará comienzo la reserva que se va a añadir al sistema", example = "2000-10-31T01:30:00.000-05:00") @RequestParam(required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) fechaInicio: Date,
                    @Parameter(name = "fechaFinal", description = "Fecha y hora de inicio a la que dará comienzo la reserva que se va a añadir al sistema", example = "2000-10-31T01:30:00.000-05:00") @RequestParam(required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) fechaFinal: Date,
                    @Parameter(name = "descripcion", description = "Descripción de la reserva que se va a añadir al sistema", example = "Reserva hecha por el grupo 03") @RequestParam(required = false) descripcion: String) : Reserva {
-        val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
+        val espacioAux = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
         val conjuntoEspacios : MutableList<Espacio> = ArrayList<Espacio>();
-        conjuntoEspacios.add(espacio);
+        conjuntoEspacios.add(espacioAux);
         val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, fechaInicio, fechaFinal, "la mejor");
+
+        /*
+        rabbitTemplate.messageConverter = jsonConverter()
+
+        val typeRef: ParameterizedTypeReference<PersonaOut> = object : ParameterizedTypeReference<PersonaOut>() {}
+        val response = rabbitTemplate.convertSendAndReceiveAsType(
+            "reservarEspacio",
+            "{\"idPersona\": $idUsuario}",
+            typeRef
+        )
+
+        val typeRef: ParameterizedTypeReference<Boolean> = object : ParameterizedTypeReference<Boolean>() {}
+
+        */
+        val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX")
+
+
+
+        val response = rabbitTemplate.convertSendAndReceive(
+            "reservarEspacio",
+            "{\"idUsuario\": \"$idUsuario\"," +
+                    "\"idEspacio\": \"$espacio\"," +
+                    "\"fechaInicio\": \"${formatter.format(fechaInicio)}\"," +
+                    "\"fechaFinal\": \"${formatter.format(fechaFinal)}\"," +
+                    "\"numAsistentesPrevistos\": $numMaxOcupantes," +
+                    "\"descripcion\": \"$descripcion\"" +
+                    "}",
+        )
         return reserva;
     }
 
@@ -182,6 +221,8 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
         val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, Date(Date.parse("12/04/2024 18:00")), Date(Date.parse("12/04/2024 20:00")), "la mejor");
         val conjuntoReservas : MutableList<Reserva> = ArrayList<Reserva>();
         conjuntoReservas.add(reserva);
+
+        val response = rabbitTemplate.convertSendAndReceive("consultarReservas", idUsuario.toString())
 
         return conjuntoReservas;
     }
@@ -199,6 +240,24 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
         val reserva = Reserva(conjuntoEspacios, TipoDeUsoReserva.Docencia, 15, Date(Date.parse("12/04/2024 18:00")), Date(Date.parse("12/04/2024 20:00")), "la mejor");
         val conjuntoReservas : MutableList<Reserva> = ArrayList<Reserva>();
         conjuntoReservas.add(reserva);
+
+
+        /*
+         rabbitTemplate.messageConverter = jsonConverter()
+        val typeRef: ParameterizedTypeReference<String> = object : ParameterizedTypeReference<String>() {}
+        val response = rabbitTemplate.convertSendAndReceiveAsType(
+            "eliminarReserva",
+            //"{\"idPersona\": $id, \"idReserva\": $id}",
+            "{}",
+            typeRef
+        )
+
+         */
+
+        val response = rabbitTemplate.convertSendAndReceive(
+            "eliminarReserva",
+            "{\"idPersona\": $id, \"idReserva\": $id}",
+        )
 
         return conjuntoReservas;
     }
