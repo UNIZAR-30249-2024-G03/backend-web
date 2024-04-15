@@ -3,23 +3,46 @@ package unizar.labis.g03.backendweb.controllers
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.amqp.core.Message
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter
-import org.springframework.core.ParameterizedTypeReference
+import org.springframework.amqp.support.converter.MessageConverter
+import org.springframework.context.annotation.Bean
 import org.springframework.format.annotation.DateTimeFormat
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.http.codec.json.Jackson2JsonDecoder
+import org.springframework.util.MimeTypeUtils
 import org.springframework.web.bind.annotation.*
-import unizar.labis.g03.backendweb.jsonConverter
-import unizar.labis.g03.backendweb.messaging.models.PersonaOut
 import unizar.labis.g03.backendweb.models.*
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashMap
+import java.util.concurrent.TimeoutException
+
 
 @Tag(name = "Reservas AdaByron", description = "API para la reserva de espacios en el edificio Ada Byron")
 @RestController
 class ReservasController(val rabbitTemplate: RabbitTemplate) {
+    init {
+        /*
+        val messageConverter = object : Jackson2JsonMessageConverter(){
+            override fun fromMessage(message: Message): Any {
+                message.messageProperties.contentType = "application/json"
+                return super.fromMessage(message)
+            }
+            /*
+            override fun createMessage(objectToConvert: Any, messageProperties: MessageProperties): Message {
+                messageProperties.contentType = "application/json"
+                return super.createMessage(objectToConvert, messageProperties)
+            }
+             */
+        }
+        val utf16 = "application/json; charset=utf-16"
+
+        messageConverter.setSupportedContentType(MimeTypeUtils.parseMimeType(utf16))
+        rabbitTemplate.messageConverter = messageConverter
+
+         */
+    }
 
     // ----------------- PERSONA ---------------------
     @Operation(
@@ -142,6 +165,7 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
         val espacio = Espacio(400.30, 45, TipoEspacio.Despacho, 150, 2, true, TipoEspacio.SalaComun, "18:30", 50.0);
 
         val response = rabbitTemplate.convertSendAndReceive("cambiarCaracteristicasEspacio", "{}")
+        println("Response: " + response.toString())
 
         return espacio;
     }
@@ -257,7 +281,9 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
         val response = rabbitTemplate.convertSendAndReceive(
             "eliminarReserva",
             "{\"idPersona\": $id, \"idReserva\": $id}",
-        )
+        ) as Int?
+
+        // println(response)
 
         return conjuntoReservas;
     }
@@ -311,4 +337,40 @@ class ReservasController(val rabbitTemplate: RabbitTemplate) {
     // Strings deben ser required siempre?
     // Atributos dependientes de si el espacio es reservable o no?
 
+    @GetMapping("/duplica")
+    @Throws(TimeoutException::class)
+    fun duplica(@RequestParam(value = "value") value: Int): String {
+        // Al usar el convertSendAndReceive dejamos que RabbitTemplate implemente el
+        // Request-Reply por nosotros. Envia un mensaje con value (compone automáticamente
+        // un objeto Message con ese int), lo envía a la centralita "" con clave
+        // de enrutado duplicar, y para la respuesta usa el direct-reply-to de
+        // RabbitMQ o crea una cola temporal (podemos configurarlo). Escucha en esa
+        // cola hasta que llega una respuesta, saca el payload y lo devuelve, en este
+        // caso como Integer
+
+        // Esto gestiona cualquier escenario normal automáticamente, incluyendo si tenemos
+        // varios clientes concurrentes haciendo peticiones, puesto que RabbitTemplate
+        // crea un consumidor (o reusa uno) para la respuesta de cada petición y
+        // así se asegura de que las respuestas llegan a quien hizo las peticiones.
+
+        val response = rabbitTemplate.convertSendAndReceive(
+            "duplicar", value
+        ) as Int?
+
+        if (response == null) {
+            throw TimeoutException()
+        }
+
+        // Lo que conseguimos es que efectivamente este método que responde a una
+        // petición GET enviando un mensaje y esperando su respuesta parezca un
+        // método síncrono, normal(con la diferencia de que hay un timeout y saltará una
+        // excepción si la respuesta no llega en X segundos).
+        return String.format("Tu resultado es %d!", response)
+    }
+
+    @ResponseStatus(value = HttpStatus.REQUEST_TIMEOUT)
+    @ExceptionHandler(TimeoutException::class)
+    fun timeout(): String {
+        return "La petición no puede resolverse ahora"
+    }
 }

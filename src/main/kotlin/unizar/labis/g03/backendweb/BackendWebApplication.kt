@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.util.MimeTypeUtils
 
 
-
 @SpringBootApplication
 class BackendWebApplication
 
@@ -30,6 +29,13 @@ fun jsonConverter(): MessageConverter {
 		}
 	}
 	val utf16 = "application/json; charset=utf-16"
+	/*
+	val defaultClassMapper = DefaultClassMapper()
+	defaultClassMapper.setTrustedPackages("")
+	defaultClassMapper.setTrustedPackages("*") // trusted packages
+	messageConverter.setClassMapper(defaultClassMapper)
+
+	 */
 
 	messageConverter.setSupportedContentType(MimeTypeUtils.parseMimeType(utf16))
 	return messageConverter
